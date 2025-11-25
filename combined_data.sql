@@ -1,5 +1,5 @@
 DROP TABLE IF EXISTS combined_data;
-
+--Tables
 CREATE TABLE combined_data AS
     -- Los Angeles
     SELECT
