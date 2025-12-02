@@ -398,7 +398,53 @@ los_angeles['DISTANCE_METERS'] = distances
 los_angeles.drop('geometry', axis=1, inplace=True)
 
 # ============================================================================
-# PART 3: DUCKDB COMBINATION
+# PART 3: ADD CITY, MONTH, DAY, AND IS_WEEKEND COLUMNS
+# ============================================================================
+
+print("\nAdding city, month, day, and is_weekend columns...")
+
+# Convert date columns to proper datetime format
+los_angeles['Date Rptd'] = pd.to_datetime(los_angeles['Date Rptd'], format='%m/%d/%Y %I:%M:%S %p', errors='coerce')
+chicago['Date'] = pd.to_datetime(chicago['Date'], format='mixed', errors='coerce')
+philly['dispatch_date_time'] = pd.to_datetime(philly['dispatch_date_time'], utc=True, errors='coerce')
+
+# Los Angeles - Add new columns
+los_angeles['city'] = 'Los Angeles'
+los_angeles['month'] = pd.to_datetime(los_angeles['Date']).dt.month
+los_angeles['day'] = pd.to_datetime(los_angeles['Date']).dt.day
+los_angeles['is_weekend'] = pd.to_datetime(los_angeles['Date']).dt.dayofweek.isin([5, 6]).astype(int)
+
+# Chicago - Add new columns
+chicago['city'] = 'Chicago'
+chicago['month'] = pd.to_datetime(chicago['Date']).dt.month
+chicago['day'] = pd.to_datetime(chicago['Date']).dt.day
+chicago['is_weekend'] = pd.to_datetime(chicago['Date']).dt.dayofweek.isin([5, 6]).astype(int)
+
+# Philadelphia - Add new columns
+philly['city'] = 'Philadelphia'
+philly['month'] = pd.to_datetime(philly['Date']).dt.month
+philly['day'] = pd.to_datetime(philly['Date']).dt.day
+philly['is_weekend'] = pd.to_datetime(philly['Date']).dt.dayofweek.isin([5, 6]).astype(int)
+
+# Clean data - remove rows with ANY null values in key columns (using actual DataFrame column names)
+key_columns_la = ['city', 'Date', 'Time', 'month', 'day', 'is_weekend', 'nibrs_code', 'Crm Cd Desc', 'CLOSEST_STATION', 'CLOSEST_STATION_OBJECTID', 'DISTANCE_METERS']
+key_columns_chicago = ['city', 'Date', 'Time', 'month', 'day', 'is_weekend', 'Block', 'nibrs_code', 'Description', 'CLOSEST_STATION_NAME', 'CLOSEST_STATION_OBJECTID', 'DISTANCE_METERS']
+key_columns_philly = ['city', 'Date', 'Time', 'month', 'day', 'is_weekend', 'location_block', 'nibrs_code', 'text_general_code', 'CLOSEST_STATION_NAME', 'CLOSEST_STATION_OBJECTID', 'DISTANCE_METERS']
+
+print(f"Los Angeles before cleaning: {len(los_angeles)} rows")
+los_angeles = los_angeles.dropna(subset=key_columns_la)
+print(f"Los Angeles after cleaning: {len(los_angeles)} rows")
+
+print(f"Chicago before cleaning: {len(chicago)} rows")
+chicago = chicago.dropna(subset=key_columns_chicago)
+print(f"Chicago after cleaning: {len(chicago)} rows")
+
+print(f"Philadelphia before cleaning: {len(philly)} rows")
+philly = philly.dropna(subset=key_columns_philly)
+print(f"Philadelphia after cleaning: {len(philly)} rows")
+
+# ============================================================================
+# PART 4: DUCKDB COMBINATION
 # ============================================================================
 
 print("\nCreating combined dataset with DuckDB...")
@@ -411,16 +457,6 @@ conn.register('los_angeles_df', los_angeles)
 conn.register('chicago_df', chicago)
 conn.register('philly_df', philly)
 
-# Convert date columns to proper date format before querying
-los_angeles['Date Rptd'] = pd.to_datetime(los_angeles['Date Rptd'], format='%m/%d/%Y %I:%M:%S %p', errors='coerce')
-chicago['Date'] = pd.to_datetime(chicago['Date'], format='mixed', errors='coerce')
-philly['dispatch_date_time'] = pd.to_datetime(philly['dispatch_date_time'], utc=True, errors='coerce')
-
-# Re-register after conversion
-conn.register('los_angeles_df', los_angeles)
-conn.register('chicago_df', chicago)
-conn.register('philly_df', philly)
-
 # Execute the UNION ALL query directly on the registered DataFrames
 combined_data = conn.execute("""
     DROP TABLE IF EXISTS combined_data;
@@ -428,8 +464,12 @@ combined_data = conn.execute("""
     CREATE TABLE combined_data AS
         -- Los Angeles
         SELECT
+            city,
             "Date",
             "Time",
+            month,
+            day,
+            is_weekend,
             "Location" as location,
             nibrs_code,
             "Crm Cd Desc" as description,
@@ -438,13 +478,19 @@ combined_data = conn.execute("""
             DISTANCE_METERS
         FROM los_angeles_df
         WHERE YEAR("Date Rptd") = 2020
+            AND "Date" IS NOT NULL
+            AND nibrs_code IS NOT NULL
 
         UNION ALL
 
         -- Chicago
         SELECT
+            city,
             "Date",
             "Time",
+            month,
+            day,
+            is_weekend,
             "Block" as location,
             nibrs_code,
             Description as description,
@@ -453,13 +499,19 @@ combined_data = conn.execute("""
             DISTANCE_METERS
         FROM chicago_df
         WHERE YEAR("Date") = 2020
+            AND "Date" IS NOT NULL
+            AND nibrs_code IS NOT NULL
 
         UNION ALL
 
         -- Philadelphia
         SELECT
+            city,
             "Date",
             "Time",
+            month,
+            day,
+            is_weekend,
             location_block as location,
             nibrs_code,
             text_general_code as description,
@@ -467,7 +519,9 @@ combined_data = conn.execute("""
             CLOSEST_STATION_OBJECTID,
             DISTANCE_METERS
         FROM philly_df
-        WHERE YEAR(dispatch_date_time) = 2020;
+        WHERE YEAR(dispatch_date_time) = 2020
+            AND "Date" IS NOT NULL
+            AND nibrs_code IS NOT NULL;
 
     SELECT * FROM combined_data;
 """).fetchdf()
