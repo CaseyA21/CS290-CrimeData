@@ -1,3 +1,6 @@
+# How to Run
+Simply add all files to a coding environment and run crime_script.py and all data will be wrangled into one combined file in csv format
+
 # CS290-CrimeData
 Crime Codes taken from https://ucr.fbi.gov/nibrs/2011/resources/nibrs-offense-codes
 
