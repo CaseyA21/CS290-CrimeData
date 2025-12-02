@@ -3,7 +3,8 @@ DROP TABLE IF EXISTS combined_data;
 CREATE TABLE combined_data AS
     -- Los Angeles
     SELECT
-        "DATE OCC"::DATE as date_occ,
+        "Date",
+        "Time",
         "Location" as location,
         nibrs_code,
         "Crm Cd Desc" as description,
@@ -17,7 +18,8 @@ UNION ALL
 
     -- Chicago
     SELECT
-        "Date"::DATE as date_occ,
+        "Date",
+        "Time",
         "Block" as location,
         nibrs_code,
         Description as description,
@@ -31,12 +33,13 @@ UNION ALL
 
     -- Philadelphia
     SELECT
-        dispatch_date_time::DATE as date_occ,
+        "Date",
+        "Time",
         location_block as location,
         nibrs_code,
         text_general_code as description,
         CLOSEST_STATION_NAME as CLOSEST_STATION,
         CLOSEST_STATION_OBJECTID,
         DISTANCE_METERS
-    FROM read_csv_auto('philly_cleaned.csv')
+    FROM read_csv_auto('philly_clean.csv')
     WHERE YEAR(dispatch_date_time::DATE) = 2020; -- Filter for Philly
