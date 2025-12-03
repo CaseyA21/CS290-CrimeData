@@ -440,7 +440,7 @@ print(f"Philadelphia after cleaning: {len(philly)} rows")
 # PART 4: DUCKDB COMBINATION
 # ============================================================================
 
-print("\nCreating combined dataset with DuckDB...")
+print("\nGathering all data from 2020 and creating combined dataset with DuckDB...")
 
 # Create DuckDB connection
 conn = duckdb.connect()
@@ -526,8 +526,6 @@ combined_data = conn.execute("""
 """).fetchdf()
 
 print(f"\nCombined dataset created with {len(combined_data)} records.")
-print("\nFirst few rows:")
-print(combined_data.head())
 
 # Optional: Save the combined data to CSV
 combined_data.to_csv('combined_crime_data_2020.csv', index=False)
