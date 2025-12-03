@@ -57,10 +57,14 @@ philly_nibrs_crosswalk = {
     'Public Drunkenness': '90E',
     'Disorderly Conduct': '90C',
     'Vagrancy/Loitering': '90B',
-    'Other Offenses': '90Z'
 }
 
-philly['nibrs_code'] = philly['text_general_code'].map(philly_nibrs_crosswalk)
+philly['nibrs_code'] = philly['text_general_code'].map(philly_nibrs_crosswalk).fillna('90Z')
+philly['text_general_code'] = philly.apply(
+    lambda row: 'Other Offenses' if row['nibrs_code'] == '90Z' and row[
+        'text_general_code'] not in philly_nibrs_crosswalk else row['text_general_code'],
+    axis=1
+)
 
 # Creates Time and Date columns
 philly['dispatch_date_time'] = pd.to_datetime(philly['dispatch_date_time'], utc=True)
@@ -180,23 +184,14 @@ chicago_nibrs_crosswalk = {
     '3980': '13C',
     # Domestic Violence
     '9901': '90F',
-    # Other Offenses
-    '0490': '90Z', '0492': '90Z', '0493': '90Z', '0494': '90Z', '0510': '90Z',
-    '2820': '90Z', '2825': '90Z', '2826': '90Z', '2830': '90Z', '3610': '90Z',
-    '3710': '90Z', '3720': '90Z', '3730': '90Z', '3731': '90Z', '3740': '90Z',
-    '3750': '90Z', '3751': '90Z', '3760': '90Z', '3770': '90Z', '3800': '90Z',
-    '3910': '90Z', '3920': '90Z', '4310': '90Z', '4386': '90Z', '4387': '90Z',
-    '4388': '90Z', '4389': '90Z', '4510': '90Z', '4625': '90Z', '4650': '90Z',
-    '4651': '90Z', '4652': '90Z', '4740': '90Z', '4750': '90Z', '4800': '90Z',
-    '4810': '90Z', '4860': '90Z', '5000': '90Z', '5001': '90Z', '5002': '90Z',
-    '5003': '90Z', '5004': '11D', '5005': '11D', '5007': '90Z', '5008': '90Z',
-    '5009': '90Z', '500E': '90Z', '500N': '90Z', '5011': '90Z', '5013': '90Z',
-    '501A': '90Z', '501H': '90Z', '502P': '90Z', '502R': '90Z', '502T': '90Z',
-    '5110': '90Z', '5111': '90Z', '5112': '90Z', '5120': '90Z', '5121': '90Z',
-    '5122': '90Z', '5130': '90Z', '5131': '90Z', '5132': '90Z',
 }
 
-chicago['nibrs_code'] = chicago['IUCR'].map(chicago_nibrs_crosswalk)
+chicago['nibrs_code'] = chicago['IUCR'].map(chicago_nibrs_crosswalk).fillna('90Z')
+chicago['Description'] = chicago.apply(
+    lambda row: 'Other Offenses' if row['nibrs_code'] == '90Z' and row['IUCR'] not in chicago_nibrs_crosswalk else row[
+        'Description'],
+    axis=1
+)
 
 # Creates Time and Date columns
 chicago['Date'] = pd.to_datetime(chicago['Date'], format='mixed', errors='coerce')
@@ -247,20 +242,20 @@ la_nibrs_crosswalk = {
     '870': '90F', '954': '90F',
     '880': '90C', '882': '90C', '884': '90C', '886': '90C',
     '888': '90J',
-    '432': '90Z', '434': '90Z', '435': '90Z', '436': '90Z', '437': '90Z',
-    '438': '90Z', '439': '90Z', '890': '90Z', '900': '90Z', '901': '90Z',
-    '902': '90Z', '903': '90Z', '924': '90Z', '926': '90Z', '932': '90H',
-    '933': '90Z', '943': '90Z', '944': '90Z', '946': '90Z', '948': '90Z',
-    '949': '90Z',
 }
 
-los_angeles['nibrs_code'] = los_angeles['Crm Cd'].map(la_nibrs_crosswalk)
+los_angeles['nibrs_code'] = los_angeles['Crm Cd'].map(la_nibrs_crosswalk).fillna('90Z')
+los_angeles['Crm Cd Desc'] = los_angeles.apply(
+    lambda row: 'Other Offenses' if row['nibrs_code'] == '90Z' and row['Crm Cd'] not in la_nibrs_crosswalk else row[
+        'Crm Cd Desc'],
+    axis=1
+)
 
 # Creates Time and Date columns
 los_angeles['TIME OCC'] = los_angeles['TIME OCC'].astype(str).str.zfill(4)
 los_angeles['TIME OCC'] = (
-    los_angeles['TIME OCC'].str.slice(0, 2) + ':' +
-    los_angeles['TIME OCC'].str.slice(2, 4) + ':00'
+        los_angeles['TIME OCC'].str.slice(0, 2) + ':' +
+        los_angeles['TIME OCC'].str.slice(2, 4) + ':00'
 )
 los_angeles['DATE OCC'] = pd.to_datetime(
     los_angeles['DATE OCC'].str.split().str[0],
@@ -375,7 +370,8 @@ crimes_gdf = gpd.GeoDataFrame(los_angeles, geometry='geometry', crs="EPSG:4326")
 crimes_gdf = crimes_gdf.to_crs("EPSG:3857")
 
 # Station GeoDataFrame
-los_angeles_police['geometry'] = [Point(xy) for xy in zip(los_angeles_police['LONGITUDE'], los_angeles_police['LATITUDE'])]
+los_angeles_police['geometry'] = [Point(xy) for xy in
+                                  zip(los_angeles_police['LONGITUDE'], los_angeles_police['LATITUDE'])]
 stations_gdf = gpd.GeoDataFrame(los_angeles_police, geometry='geometry', crs="EPSG:4326")
 stations_gdf = stations_gdf.to_crs(crimes_gdf.crs)
 
@@ -427,9 +423,12 @@ philly['day'] = pd.to_datetime(philly['Date']).dt.day
 philly['is_weekend'] = pd.to_datetime(philly['Date']).dt.dayofweek.isin([5, 6]).astype(int)
 
 # Clean data - remove rows with ANY null values in key columns (using actual DataFrame column names)
-key_columns_la = ['city', 'Date', 'Time', 'month', 'day', 'is_weekend', 'nibrs_code', 'Crm Cd Desc', 'CLOSEST_STATION', 'CLOSEST_STATION_OBJECTID', 'DISTANCE_METERS']
-key_columns_chicago = ['city', 'Date', 'Time', 'month', 'day', 'is_weekend', 'Block', 'nibrs_code', 'Description', 'CLOSEST_STATION_NAME', 'CLOSEST_STATION_OBJECTID', 'DISTANCE_METERS']
-key_columns_philly = ['city', 'Date', 'Time', 'month', 'day', 'is_weekend', 'location_block', 'nibrs_code', 'text_general_code', 'CLOSEST_STATION_NAME', 'CLOSEST_STATION_OBJECTID', 'DISTANCE_METERS']
+key_columns_la = ['city', 'Date', 'Time', 'month', 'day', 'is_weekend', 'nibrs_code', 'Crm Cd Desc', 'CLOSEST_STATION',
+                  'CLOSEST_STATION_OBJECTID', 'DISTANCE_METERS']
+key_columns_chicago = ['city', 'Date', 'Time', 'month', 'day', 'is_weekend', 'Block', 'nibrs_code', 'Description',
+                       'CLOSEST_STATION_NAME', 'CLOSEST_STATION_OBJECTID', 'DISTANCE_METERS']
+key_columns_philly = ['city', 'Date', 'Time', 'month', 'day', 'is_weekend', 'location_block', 'nibrs_code',
+                      'text_general_code', 'CLOSEST_STATION_NAME', 'CLOSEST_STATION_OBJECTID', 'DISTANCE_METERS']
 
 print(f"Los Angeles before cleaning: {len(los_angeles)} rows")
 los_angeles = los_angeles.dropna(subset=key_columns_la)
@@ -459,74 +458,74 @@ conn.register('philly_df', philly)
 
 # Execute the UNION ALL query directly on the registered DataFrames
 combined_data = conn.execute("""
-    DROP TABLE IF EXISTS combined_data;
+                             DROP TABLE IF EXISTS combined_data;
 
-    CREATE TABLE combined_data AS
-        -- Los Angeles
-        SELECT
-            city,
-            "Date",
-            "Time",
-            month,
-            day,
-            is_weekend,
-            "Location" as location,
-            nibrs_code,
-            "Crm Cd Desc" as description,
-            CLOSEST_STATION,
-            CLOSEST_STATION_OBJECTID,
-            DISTANCE_METERS
-        FROM los_angeles_df
-        WHERE YEAR("Date Rptd") = 2020
-            AND "Date" IS NOT NULL
-            AND nibrs_code IS NOT NULL
+                             CREATE TABLE combined_data AS
+                                 -- Los Angeles
+                             SELECT city,
+                                    "Date",
+                                    "Time",
+                                    month,
+                                    day,
+                                    is_weekend,
+                                    "Location"    as location,
+                                    nibrs_code,
+                                    "Crm Cd Desc" as description,
+                                    CLOSEST_STATION,
+                                    CLOSEST_STATION_OBJECTID,
+                                    DISTANCE_METERS
+                             FROM los_angeles_df
+                             WHERE YEAR("Date Rptd") = 2020
+                               AND "Date" IS NOT NULL
+                               AND nibrs_code IS NOT NULL
 
-        UNION ALL
+                             UNION ALL
 
-        -- Chicago
-        SELECT
-            city,
-            "Date",
-            "Time",
-            month,
-            day,
-            is_weekend,
-            "Block" as location,
-            nibrs_code,
-            Description as description,
-            CLOSEST_STATION_NAME as CLOSEST_STATION,
-            CLOSEST_STATION_OBJECTID,
-            DISTANCE_METERS
-        FROM chicago_df
-        WHERE YEAR("Date") = 2020
-            AND "Date" IS NOT NULL
-            AND nibrs_code IS NOT NULL
+                             -- Chicago
+                             SELECT city,
+                                    "Date",
+                                    "Time",
+                                    month,
+                                    day,
+                                    is_weekend,
+                                    "Block"              as location,
+                                    nibrs_code,
+                                    Description          as description,
+                                    CLOSEST_STATION_NAME as CLOSEST_STATION,
+                                    CLOSEST_STATION_OBJECTID,
+                                    DISTANCE_METERS
+                             FROM chicago_df
+                             WHERE YEAR("Date") = 2020
+                               AND "Date" IS NOT NULL
+                               AND nibrs_code IS NOT NULL
 
-        UNION ALL
+                             UNION ALL
 
-        -- Philadelphia
-        SELECT
-            city,
-            "Date",
-            "Time",
-            month,
-            day,
-            is_weekend,
-            location_block as location,
-            nibrs_code,
-            text_general_code as description,
-            CLOSEST_STATION_NAME as CLOSEST_STATION,
-            CLOSEST_STATION_OBJECTID,
-            DISTANCE_METERS
-        FROM philly_df
-        WHERE YEAR(dispatch_date_time) = 2020
-            AND "Date" IS NOT NULL
-            AND nibrs_code IS NOT NULL;
+                             -- Philadelphia
+                             SELECT city,
+                                    "Date",
+                                    "Time",
+                                    month,
+                                    day,
+                                    is_weekend,
+                                    location_block       as location,
+                                    nibrs_code,
+                                    text_general_code    as description,
+                                    CLOSEST_STATION_NAME as CLOSEST_STATION,
+                                    CLOSEST_STATION_OBJECTID,
+                                    DISTANCE_METERS
+                             FROM philly_df
+                             WHERE YEAR(dispatch_date_time) = 2020
+                               AND "Date" IS NOT NULL
+                               AND nibrs_code IS NOT NULL;
 
-    SELECT * FROM combined_data;
-""").fetchdf()
+                             SELECT *
+                             FROM combined_data;
+                             """).fetchdf()
 
 print(f"\nCombined dataset created with {len(combined_data)} records.")
+print("\nFirst few rows:")
+print(combined_data.head())
 
 # Optional: Save the combined data to CSV
 combined_data.to_csv('combined_crime_data_2020.csv', index=False)
