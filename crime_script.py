@@ -244,7 +244,8 @@ la_nibrs_crosswalk = {
 
 los_angeles['nibrs_code'] = los_angeles['Crm Cd'].map(la_nibrs_crosswalk).fillna('90Z')
 los_angeles['Crm Cd Desc'] = los_angeles.apply(
-    lambda row: 'Other Offenses' if row['nibrs_code'] == '90Z' and row['Crm Cd'] not in la_nibrs_crosswalk else row['Crm Cd Desc'],
+    lambda row: 'Other Offenses' if row['nibrs_code'] == '90Z' and row['Crm Cd'] not in
+    la_nibrs_crosswalk else row['Crm Cd Desc'],
     axis=1
 )
 
